@@ -5,6 +5,7 @@ from PyQt5.QtGui import QIcon
 from PyQt5.QtMultimedia import QMediaPlayer, QMediaContent, QMediaPlaylist
 import sys
 from utils import get_html, convert_duration_to_show
+from winamp_playlist import PlaylistUI
 
 class UI(QMainWindow):
     def __init__(self):
@@ -12,7 +13,7 @@ class UI(QMainWindow):
 
         #Load the ui file
         uic.loadUi('winamp_player.ui', self)
-        self.setWindowIcon(QIcon('winamp-icon.png'))
+        self.setWindowIcon(QIcon('img/winamp-icon.png'))
 
         #Define widgets
         #Buttons
@@ -24,6 +25,7 @@ class UI(QMainWindow):
         self.download_btn = self.findChild(QPushButton, "download_btn")
         self.shuffle_btn = self.findChild(QPushButton, 'shuffle_btn')
         self.loop_btn = self.findChild(QPushButton, 'loop_btn')
+        self.pl_btn = self.findChild(QPushButton, 'pl_btn')
         #set icons
         self.back_btn.setIcon(self.style().standardIcon(QStyle.SP_ArrowBack))
         self.play_btn.setIcon(self.style().standardIcon(QStyle.SP_MediaPlay))
@@ -41,10 +43,14 @@ class UI(QMainWindow):
         self.download_btn.clicked.connect(self.download)
         self.shuffle_btn.clicked.connect(self.shuffle)
         self.loop_btn.clicked.connect(self.loop)
+        self.pl_btn.clicked.connect(self.open_playlist)
 
         #sliders
         self.time_slider = self.findChild(QSlider, 'time_slider')
         self.volume_slider = self.findChild(QSlider, 'volume_slider')
+
+        #set default volume
+        self.volume_slider.setValue(20)
 
         #sliders value change
         self.time_slider.sliderMoved.connect(self.set_position)
@@ -122,17 +128,26 @@ class UI(QMainWindow):
 
     #download list of music
     def download(self):
-        #open dialog window
-        filenames, _ = QFileDialog.getOpenFileNames(self, 'Play song')
-        if len(filenames) != 0:
-            for filename in filenames:
-                url = QUrl.fromLocalFile(filename)
-                #add song to playlist
-                self.playlist.addMedia(QMediaContent(url))
-            #add playlist to player
-            self.Player.setPlaylist(self.playlist)
-            #set button to enabled
-            self.set_Enabled_button()
+        try:
+            #open dialog window
+            filenames, _ = QFileDialog.getOpenFileNames(self, 'Play song')
+            if len(filenames) != 0:
+                self.open_playlist()
+                i = 1
+                for filename in filenames:
+                    url = QUrl.fromLocalFile(filename)
+                    #add song to playlist
+                    self.playlist.addMedia(QMediaContent(url))
+                    #add song to list of songs
+                    song = '{}. {}'.format(i,filename.split('/')[-1])
+                    self.ui.list_songs.addItem(song)
+                    i += 1
+                #add playlist to player
+                self.Player.setPlaylist(self.playlist)
+                #set button to enabled
+                self.set_Enabled_button()
+        except:
+            self.title_lcd.setPlainText('Invalid format files')
 
     def set_volume(self, value):
         self.Player.setVolume(value)
@@ -147,6 +162,10 @@ class UI(QMainWindow):
         duration_list = convert_duration_to_show(position)
         time = duration_list[0] + ':' + duration_list[1]
         self.time_lcd.setHtml(get_html(time))
+        try:
+            self.ui.time_song_text.setPlainText('0' + time)
+        except:
+            print('Error Playlist')
 
     #set slider range
     def duration_changed(self, duration):
@@ -194,6 +213,31 @@ class UI(QMainWindow):
     def handle_errors(self):
         self.play_btn.setEnabled(False)
         self.title_lcd.setPlainText('Error' + str(self.Player.errorString()))
+
+    #open playlist window
+    def open_playlist(self):
+        #define playlist
+        self.ui = PlaylistUI()
+
+        # click Buttons
+        self.ui.pl_back_btn.clicked.connect(self.back)
+        self.ui.pl_play_btn.clicked.connect(self.play)
+        self.ui.pl_pause_btn.clicked.connect(self.pause)
+        self.ui.pl_stop_btn.clicked.connect(self.stop)
+        self.ui.pl_next_btn.clicked.connect(self.next)
+        self.ui.pl_download_btn.clicked.connect(self.download)
+
+        #click item in list
+        self.ui.list_songs.itemClicked.connect(self.clicked_song)
+
+        #Add song to playlist
+        print(self.playlist.Sequential)
+
+    #cklick item in list songs
+    def clicked_song(self, item):
+        index = int(item.text().split('.')[0]) - 1
+        self.playlist.setCurrentIndex(index)
+
 
     def __del__(self):
         if hasattr(self, "playlist"):

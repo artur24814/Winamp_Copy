@@ -3,12 +3,13 @@ Helper functions
 '''
 
 
+#convert int number to time format
 def convert_duration_to_show(duration):
     duration_to_show = (duration / 1000) / 60
     duration_list = str(format(duration_to_show, '.2f')).split('.')
     return duration_list
 
-
+#get Html template
 def get_html(time):
     return '''
     <!DOCTYPE HTML>
